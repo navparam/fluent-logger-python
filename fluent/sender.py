@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import errno
 import socket
+import ssl
 import struct
 import threading
 import time
@@ -37,7 +38,7 @@ def close():  # pragma: no cover
 class EventTime(msgpack.ExtType):
     def __new__(cls, timestamp):
         seconds = int(timestamp)
-        nanoseconds = int(timestamp % 1 * 10 ** 9)
+        nanoseconds = int(timestamp % 1 * 10**9)
         return super(EventTime, cls).__new__(
             cls,
             code=0,
@@ -56,6 +57,8 @@ class FluentSender(object):
                  buffer_overflow_handler=None,
                  nanosecond_precision=False,
                  msgpack_kwargs=None,
+                 ssl=False,
+                 cafile=None,
                  **kwargs):
         """
         :param kwargs: This kwargs argument is not used in __init__. This will be removed in the next major version.
@@ -69,6 +72,8 @@ class FluentSender(object):
         self.buffer_overflow_handler = buffer_overflow_handler
         self.nanosecond_precision = nanosecond_precision
         self.msgpack_kwargs = {} if msgpack_kwargs is None else msgpack_kwargs
+        self.ssl = ssl
+        self.cafile = cafile
 
         self.socket = None
         self.pendings = None
@@ -90,10 +95,12 @@ class FluentSender(object):
             bytes_ = self._make_packet(label, timestamp, data)
         except Exception as e:
             self.last_error = e
-            bytes_ = self._make_packet(label, timestamp,
-                                       {"level": "CRITICAL",
-                                        "message": "Can't output to log",
-                                        "traceback": traceback.format_exc()})
+            bytes_ = self._make_packet(
+                label, timestamp, {
+                    "level": "CRITICAL",
+                    "message": "Can't output to log",
+                    "traceback": traceback.format_exc()
+                })
         return self._send(bytes_)
 
     @property
@@ -172,7 +179,7 @@ class FluentSender(object):
             try:
                 recvd = self.socket.recv(4096)
             except socket.error as recv_e:
-                if recv_e.errno != errno.EWOULDBLOCK:
+                if recv_e.errno not in [errno.EWOULDBLOCK, errno.ENOENT]:
                     raise
                 return
 
@@ -195,20 +202,30 @@ class FluentSender(object):
             bytes_sent += sent
         self._check_recv_side()
 
+    def _wrap_sock_with_ssl(self, sock):
+        if not self.ssl:
+            return sock
+
+        context = ssl.create_default_context(cafile=self.cafile)
+        return context.wrap_socket(sock, server_hostname="Client")
+
     def _reconnect(self):
         if not self.socket:
             try:
                 if self.host.startswith('unix://'):
                     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                    sock = self._wrap_sock_with_ssl(sock)
                     sock.settimeout(self.timeout)
                     sock.connect(self.host[len('unix://'):])
                 else:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock = self._wrap_sock_with_ssl(sock)
                     sock.settimeout(self.timeout)
                     # This might be controversial and may need to be removed
                     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                     sock.connect((self.host, self.port))
             except Exception as e:
+
                 try:
                     sock.close()
                 except Exception:  # pragma: no cover
