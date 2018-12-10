@@ -57,8 +57,8 @@ class FluentSender(object):
                  buffer_overflow_handler=None,
                  nanosecond_precision=False,
                  msgpack_kwargs=None,
-                 ssl=False,
-                 cafile=None,
+                 use_ssl=False,
+                 ssl_context_args={},
                  **kwargs):
         """
         :param kwargs: This kwargs argument is not used in __init__. This will be removed in the next major version.
@@ -72,8 +72,8 @@ class FluentSender(object):
         self.buffer_overflow_handler = buffer_overflow_handler
         self.nanosecond_precision = nanosecond_precision
         self.msgpack_kwargs = {} if msgpack_kwargs is None else msgpack_kwargs
-        self.ssl = ssl
-        self.cafile = cafile
+        self.ssl = use_ssl
+        self.ssl_context_args = ssl_context_args
 
         self.socket = None
         self.pendings = None
@@ -206,7 +206,7 @@ class FluentSender(object):
         if not self.ssl:
             return sock
 
-        context = ssl.create_default_context(cafile=self.cafile)
+        context = ssl.create_default_context(**self.ssl_context_args)
         return context.wrap_socket(sock, server_hostname="Client")
 
     def _reconnect(self):
@@ -225,7 +225,6 @@ class FluentSender(object):
                     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                     sock.connect((self.host, self.port))
             except Exception as e:
-
                 try:
                     sock.close()
                 except Exception:  # pragma: no cover
