@@ -59,20 +59,27 @@ class FluentSender(sender.FluentSender):
         """
         :param kwargs: This kwargs argument is not used in __init__. This will be removed in the next major version.
         """
-        super(FluentSender, self).__init__(tag=tag, host=host, port=port, bufmax=bufmax, timeout=timeout,
-                                           verbose=verbose, buffer_overflow_handler=buffer_overflow_handler,
-                                           nanosecond_precision=nanosecond_precision,
-                                           msgpack_kwargs=msgpack_kwargs,
-                                           **kwargs)
+        super(FluentSender, self).__init__(
+            tag=tag,
+            host=host,
+            port=port,
+            bufmax=bufmax,
+            timeout=timeout,
+            verbose=verbose,
+            buffer_overflow_handler=buffer_overflow_handler,
+            nanosecond_precision=nanosecond_precision,
+            msgpack_kwargs=msgpack_kwargs,
+            **kwargs)
         self._queue_maxsize = queue_maxsize
         self._queue_circular = queue_circular
 
-        self._thread_guard = threading.Event()  # This ensures visibility across all variables
+        self._thread_guard = threading.Event(
+        )  # This ensures visibility across all variables
         self._closed = False
 
         self._queue = Queue(maxsize=queue_maxsize)
-        self._send_thread = threading.Thread(target=self._send_loop,
-                                             name="AsyncFluentSender %d" % id(self))
+        self._send_thread = threading.Thread(
+            target=self._send_loop, name="AsyncFluentSender %d" % id(self))
         self._send_thread.daemon = True
         self._send_thread.start()
 
@@ -114,8 +121,8 @@ class FluentSender(sender.FluentSender):
                     pass
             try:
                 self._queue.put(bytes_, block=(not self._queue_circular))
-            except Full:    # pragma: no cover
-                return False    # this actually can't happen
+            except Full:  # pragma: no cover
+                return False  # this actually can't happen
 
             return True
 
