@@ -59,6 +59,7 @@ class FluentSender(object):
                  msgpack_kwargs=None,
                  use_ssl=False,
                  ssl_context_args={},
+                 ssl_server_hostname="",
                  **kwargs):
         """
         :param kwargs: This kwargs argument is not used in __init__. This will be removed in the next major version.
@@ -74,6 +75,7 @@ class FluentSender(object):
         self.msgpack_kwargs = {} if msgpack_kwargs is None else msgpack_kwargs
         self.ssl = use_ssl
         self.ssl_context_args = ssl_context_args
+        self.ssl_server_hostname = ssl_server_hostname
 
         self.socket = None
         self.pendings = None
@@ -207,7 +209,8 @@ class FluentSender(object):
             return sock
 
         context = ssl.create_default_context(**self.ssl_context_args)
-        return context.wrap_socket(sock, server_hostname="Client")
+        return context.wrap_socket(
+            sock, server_hostname=self.ssl_server_hostname)
 
     def _reconnect(self):
         if not self.socket:
