@@ -6,6 +6,7 @@ import errno
 import socket
 import ssl
 import struct
+import logging
 import threading
 import time
 import traceback
@@ -13,6 +14,11 @@ import traceback
 import msgpack
 
 _global_sender = None
+
+LOGGER = logging.getLogger('mona-logger')
+
+_exceptions_logged = 0
+MAX_EXCEPTIONS_TO_LOG = 5
 
 
 def _set_global_sender(sender):  # pragma: no cover
@@ -161,6 +167,7 @@ class FluentSender(object):
 
             return True
         except socket.error as e:
+            LOGGER.debug("Error while sending data: {}".format(str(e)))
             self.last_error = e
 
             # close socket
@@ -201,6 +208,7 @@ class FluentSender(object):
             sent = self.socket.send(bytes_[bytes_sent:])
             if sent == 0:
                 raise socket.error(errno.EPIPE, "Broken pipe")
+            LOGGER.debug("Sent {} bytes".format(str(sent)))
             bytes_sent += sent
         self._check_recv_side()
 
@@ -228,6 +236,12 @@ class FluentSender(object):
                     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                     sock.connect((self.host, self.port))
             except Exception as e:
+                global _exceptions_logged
+                if _exceptions_logged < MAX_EXCEPTIONS_TO_LOG:
+                    LOGGER.debug(
+                        "Exception while connecting to socket: {}".format(
+                            str(e)))
+                    _exceptions_logged += 1
                 try:
                     sock.close()
                 except Exception:  # pragma: no cover
@@ -235,6 +249,7 @@ class FluentSender(object):
                 raise e
             else:
                 self.socket = sock
+                LOGGER.debug("Socket object: {}".format(str(sock)))
 
     def _call_buffer_overflow_handler(self, pending_events):
         try:

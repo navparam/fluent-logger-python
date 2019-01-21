@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import threading
+import logging
 
 try:
     from queue import Queue, Full, Empty
@@ -20,6 +21,8 @@ DEFAULT_QUEUE_CIRCULAR = False
 _TOMBSTONE = object()
 
 _global_sender = None
+
+LOGGER = logging.getLogger('mona-logger')
 
 
 def _set_global_sender(sender):  # pragma: no cover
@@ -120,7 +123,9 @@ class FluentSender(sender.FluentSender):
                 except Empty:  # pragma: no cover
                     pass
             try:
+                LOGGER.debug("Trying to add message to queue")
                 self._queue.put(bytes_, block=(not self._queue_circular))
+                LOGGER.debug("Added message to queue")
             except Full:  # pragma: no cover
                 return False  # this actually can't happen
 

@@ -12,7 +12,7 @@ desc = 'A Python logging handler for Fluentd event collector'
 
 setup(
     name='mona-fluent-logger',
-    version='0.0.3',
+    version='0.0.4',
     description=desc,
     long_description=open(README).read(),
     package_dir={'fluent': 'fluent'},
