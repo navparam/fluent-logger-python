@@ -167,7 +167,7 @@ class FluentSender(object):
 
             return True
         except socket.error as e:
-            LOGGER.debug("Error while sending data: {}".format(str(e)))
+            LOGGER.debug("Error while sending data: {}".format(repr(e)))
             self.last_error = e
 
             # close socket
@@ -240,7 +240,7 @@ class FluentSender(object):
                 if _exceptions_logged < MAX_EXCEPTIONS_TO_LOG:
                     LOGGER.debug(
                         "Exception while connecting to socket: {}".format(
-                            str(e)))
+                            repr(e)))
                     _exceptions_logged += 1
                 try:
                     sock.close()
